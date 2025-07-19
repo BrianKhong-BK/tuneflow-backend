@@ -59,27 +59,72 @@ app.use(async (req, res, next) => {
 
 // Example route: create playlist
 app.post("/api/playlists", async (req, res) => {
-  const { name, is_public } = req.body;
+  const { name, is_public, description } = req.body;
   const userId = req.user.uid;
   const email = req.user.email;
+  const userName = req.user.name;
+  const client = await pool.connect();
 
   // Ensure user exists in your DB
-  await pool.query(
-    `INSERT INTO users (id, email)
-     VALUES ($1, $2)
-     ON CONFLICT (id) DO NOTHING`,
-    [userId, email]
-  );
-
-  const result = await pool.query(
-    `INSERT INTO playlists (user_id, name, is_public)
+  try {
+    await client.query(
+      `INSERT INTO users (id, email, username)
      VALUES ($1, $2, $3)
-     RETURNING *`,
-    [userId, name, is_public]
-  );
+     ON CONFLICT (id) DO NOTHING`,
+      [userId, email, userName]
+    );
 
-  res.json(result.rows[0]);
+    const result = await client.query(
+      `INSERT INTO playlists (user_id, name, is_public, description)
+     VALUES ($1, $2, $3, $4)
+     RETURNING *`,
+      [userId, name, is_public, description]
+    );
+
+    res.json(result.rows[0]);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  } finally {
+    client.release();
+  }
 });
 
-const PORT = process.env.PORT || 3001;
+app.get("/api/playlists", async (req, res) => {
+  const userId = req.user.uid;
+  const client = await pool.connect();
+
+  try {
+    const response = await client.query(
+      "SELECT * FROM playlists WHERE user_id = $1",
+      [userId]
+    );
+
+    res.json(response.rows);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  } finally {
+    client.release();
+  }
+});
+
+app.post("/api/playlists/:id/songs", async (req, res) => {
+  const playlistId = req.params.id;
+  const { title, artist, youtubeId, thumbnail } = req.body;
+
+  const client = await pool.connect();
+  try {
+    await client.query(
+      `INSERT INTO playlist_songs (playlist_id, title, artist, youtube_id, thumbnail)
+       VALUES ($1, $2, $3, $4, $5)`,
+      [playlistId, title, artist, youtubeId, thumbnail]
+    );
+    res.status(201).json({ message: "Song added to playlist" });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  } finally {
+    client.release();
+  }
+});
+
+const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
