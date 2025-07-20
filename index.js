@@ -143,5 +143,29 @@ app.get("/api/playlists/:id/songs", async (req, res) => {
   }
 });
 
+app.delete("/api/playlists/:playlistid/songs/:songid", async (req, res) => {
+  const playlistId = req.params.playlistid;
+  const songId = req.params.songid;
+
+  const client = await pool.connect();
+  try {
+    const result = await client.query(
+      `DELETE FROM playlist_songs WHERE playlist_id = $1 AND id = $2`,
+      [playlistId, songId]
+    );
+
+    if (result.rowCount === 0) {
+      return res.status(404).json({ error: "Song not found in playlist" });
+    }
+
+    res.status(200).json({ message: "Song removed from playlist" });
+  } catch (err) {
+    console.error("Error deleting song:", err);
+    res.status(500).json({ error: "Internal server error" });
+  } finally {
+    client.release();
+  }
+});
+
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
