@@ -126,5 +126,22 @@ app.post("/api/playlists/:id/songs", async (req, res) => {
   }
 });
 
+app.get("/api/playlists/:id/songs", async (req, res) => {
+  const playlistId = req.params.id;
+
+  const client = await pool.connect();
+  try {
+    const response = await client.query(
+      `SELECT * FROM playlist_songs WHERE playlist_id = $1`,
+      [playlistId]
+    );
+    res.json(response.rows);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  } finally {
+    client.release();
+  }
+});
+
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
