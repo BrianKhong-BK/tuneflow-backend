@@ -74,6 +74,14 @@ function normalize(text) {
     .trim();
 }
 
+function convertDuration(duration) {
+  const s = duration / 1000,
+    min = String(Math.floor((s / 60) << 0)),
+    sec = String(Math.floor(s % 60)).padStart(2, "0");
+
+  return min + ":" + sec;
+}
+
 // ✅ Spotify Search
 app.get("/api/spotify-search", async (req, res) => {
   const query = req.query.q;
@@ -101,6 +109,7 @@ app.get("/api/spotify-search", async (req, res) => {
       title: item.name,
       cover: item.album.images[2]?.url || item.album.images[0]?.url || "",
       artist: item.artists.map((artist) => artist.name).join(", "),
+      duration: convertDuration(item.duration_ms),
     }));
 
     res.json({
