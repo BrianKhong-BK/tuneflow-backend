@@ -188,23 +188,23 @@ function calculateMatchScore(youtubeTrack, spotifyInput) {
   if (youtubeArtist === spotifyArtist) score += 15;
 
   spotifyTitle.split(" ").forEach((word) => {
-    if (youtubeTitle.includes(word)) score += 5;
-    else score -= 5;
+    if (youtubeTitle.includes(word)) score += 10;
+    else score -= 10;
   });
 
   spotifyArtist.split(",").forEach((word) => {
-    if (youtubeArtist.includes(word)) score += 4;
-    else score -= 4;
+    if (youtubeArtist.includes(word)) score += 25;
+    else score -= 25;
   });
 
   youtubeTitle.split(" ").forEach((word) => {
-    if (spotifyTitle.includes(word)) score += 5;
-    else score -= 5;
+    if (spotifyTitle.includes(word)) score += 10;
+    else score -= 10;
   });
 
   youtubeArtist.split(",").forEach((word) => {
-    if (spotifyArtist.includes(word)) score += 4;
-    else score -= 4;
+    if (spotifyArtist.includes(word)) score += 25;
+    else score -= 25;
   });
 
   const titleSimilarity = stringSimilarity.compareTwoStrings(
@@ -290,6 +290,27 @@ app.get("/api/playlists", async (req, res) => {
     );
 
     res.json(response.rows);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  } finally {
+    client.release();
+  }
+});
+
+app.delete("/api/playlists/:id", async (req, res) => {
+  const playlistId = req.params.id;
+  const client = await pool.connect();
+
+  try {
+    const result = await client.query(`DELETE FROM playlists WHERE id = $1`, [
+      playlistId,
+    ]);
+
+    if (result.rowCount === 0) {
+      return res.status(404).json({ error: "Playlist not found" });
+    }
+
+    res.status(200).json({ message: "Playlist removed" });
   } catch (error) {
     res.status(500).json({ error: error.message });
   } finally {
