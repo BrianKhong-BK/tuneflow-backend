@@ -294,7 +294,7 @@ app.get("/api/playlists", async (req, res) => {
 
   try {
     const response = await client.query(
-      "SELECT * FROM playlists WHERE user_id = $1",
+      "SELECT p.*, (SELECT ARRAY(SELECT ps.thumbnail FROM playlist_songs ps WHERE ps.playlist_id = p.id LIMIT 4)) AS images FROM playlists p WHERE p.user_id = $1",
       [userId]
     );
 
