@@ -288,6 +288,38 @@ app.post("/api/playlists", async (req, res) => {
   }
 });
 
+app.put("/api/playlists/:id", async (req, res) => {
+  const { name, is_public, description } = req.body;
+  const userId = req.user.uid;
+  const playlistId = req.params.id;
+  const client = await pool.connect();
+
+  try {
+    // Optional: Ensure the playlist belongs to the user before updating
+    const check = await client.query(
+      `SELECT * FROM playlists WHERE id = $1 AND user_id = $2`,
+      [playlistId, userId]
+    );
+
+    if (check.rows.length === 0) {
+      return res
+        .status(403)
+        .json({ error: "Unauthorized or playlist not found." });
+    }
+
+    const result = await client.query(
+      `UPDATE playlists SET name = $1, is_public = $2, description = $3 WHERE id = $4 AND user_id = $5`,
+      [name, is_public, description, playlistId, userId]
+    );
+
+    res.json(result.rows[0]);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  } finally {
+    client.release();
+  }
+});
+
 app.get("/api/playlists", async (req, res) => {
   const userId = req.user.uid;
   const client = await pool.connect();
