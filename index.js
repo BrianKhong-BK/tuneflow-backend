@@ -312,7 +312,7 @@ app.put("/api/playlists/:id", async (req, res) => {
       [name, is_public, description, playlistId, userId]
     );
 
-    res.json(result.rows[0]);
+    res.json(result.rows);
   } catch (error) {
     res.status(500).json({ error: error.message });
   } finally {
@@ -331,6 +331,24 @@ app.get("/api/playlists", async (req, res) => {
     );
 
     res.json(response.rows);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  } finally {
+    client.release();
+  }
+});
+
+app.get("/api/playlists/:id", async (req, res) => {
+  const playlistId = req.params.id;
+  const client = await pool.connect();
+
+  try {
+    const response = await client.query(
+      "SELECT p.*, (SELECT ARRAY(SELECT ps.thumbnail FROM playlist_songs ps WHERE ps.playlist_id = p.id LIMIT 4)) AS images FROM playlists p WHERE p.id = $1",
+      [playlistId]
+    );
+
+    res.json(response.rows[0]);
   } catch (error) {
     res.status(500).json({ error: error.message });
   } finally {
@@ -361,14 +379,14 @@ app.delete("/api/playlists/:id", async (req, res) => {
 
 app.post("/api/playlists/:id/songs", async (req, res) => {
   const playlistId = req.params.id;
-  const { title, artist, youtubeId, thumbnail } = req.body;
+  const { title, artist, youtubeId, thumbnail, duration } = req.body;
 
   const client = await pool.connect();
   try {
     await client.query(
-      `INSERT INTO playlist_songs (playlist_id, title, artist, youtube_id, thumbnail)
-       VALUES ($1, $2, $3, $4, $5)`,
-      [playlistId, title, artist, youtubeId, thumbnail]
+      `INSERT INTO playlist_songs (playlist_id, title, artist, youtube_id, thumbnail, duration)
+       VALUES ($1, $2, $3, $4, $5, $6)`,
+      [playlistId, title, artist, youtubeId, thumbnail, duration]
     );
     res.status(201).json({ message: "Song added to playlist" });
   } catch (err) {
