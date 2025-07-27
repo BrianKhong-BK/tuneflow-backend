@@ -356,6 +356,24 @@ app.get("/api/playlists/:id", async (req, res) => {
   }
 });
 
+app.get("/api/playlists-public", async (req, res) => {
+  const userId = req.user.uid;
+  const client = await pool.connect();
+
+  try {
+    const response = await client.query(
+      "SELECT p.*, (SELECT ARRAY(SELECT ps.thumbnail FROM playlist_songs ps WHERE ps.playlist_id = p.id LIMIT 4)) AS images, u.username FROM playlists p JOIN users u ON p.user_id = u.id WHERE p.is_public = true AND p.user_id != $1",
+      [userId]
+    );
+
+    res.json(response.rows);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  } finally {
+    client.release();
+  }
+});
+
 app.delete("/api/playlists/:id", async (req, res) => {
   const playlistId = req.params.id;
   const client = await pool.connect();
