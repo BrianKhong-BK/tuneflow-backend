@@ -193,27 +193,24 @@ function calculateMatchScore(youtubeTrack, spotifyInput) {
   const spotifyTitle = normalize(spotifyInput.song);
   const spotifyArtist = spotifyInput.artist;
 
-  if (youtubeTitle === spotifyTitle) score += 20;
-  if (youtubeArtist === spotifyArtist) score += 15;
-
   spotifyTitle.split(" ").forEach((word) => {
-    if (youtubeTitle.includes(word)) score += 10;
-    else score -= 10;
+    if (youtubeTitle.includes(word)) score += 5;
+    else score -= 5;
   });
 
   spotifyArtist.split(",").forEach((word) => {
-    if (youtubeArtist.includes(word)) score += 25;
-    else score -= 25;
+    if (youtubeArtist.includes(word)) score += 15;
+    else score -= 5;
   });
 
   youtubeTitle.split(" ").forEach((word) => {
-    if (spotifyTitle.includes(word)) score += 10;
-    else score -= 10;
+    if (spotifyTitle.includes(word)) score += 5;
+    else score -= 5;
   });
 
   youtubeArtist.split(",").forEach((word) => {
-    if (spotifyArtist.includes(word)) score += 25;
-    else score -= 25;
+    if (spotifyArtist.includes(word)) score += 20;
+    else score -= 5;
   });
 
   const titleSimilarity = stringSimilarity.compareTwoStrings(
@@ -450,6 +447,82 @@ app.delete("/api/playlists/:playlistid/songs/:songid", async (req, res) => {
   } catch (err) {
     console.error("Error deleting song:", err);
     res.status(500).json({ error: "Internal server error" });
+  } finally {
+    client.release();
+  }
+});
+
+app.get("/api/recent-song", async (req, res) => {
+  const userId = req.user.uid;
+  const client = await pool.connect();
+
+  try {
+    const response = await client.query(
+      "SELECT ps.* FROM playlist_songs ps JOIN playlists p ON ps.playlist_id = p.id WHERE p.user_id = $1 ORDER BY ps.created_at DESC LIMIT 10",
+      [userId]
+    );
+
+    res.json(response.rows);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  } finally {
+    client.release();
+  }
+});
+
+app.post("/api/recent-played", async (req, res) => {
+  const userId = req.user.uid;
+  const { youtubeId, title, artist, thumbnail } = req.body;
+  const client = await pool.connect();
+
+  try {
+    await client.query("BEGIN");
+
+    // Upsert recently played song
+    await client.query(
+      `INSERT INTO recently_played (user_id, youtube_id, title, artist, thumbnail, played_at)
+       VALUES ($1, $2, $3, $4, $5, NOW())
+       ON CONFLICT (user_id, youtube_id)
+       DO UPDATE SET played_at = NOW()`,
+      [userId, youtubeId, title, artist, thumbnail]
+    );
+
+    // Trim to last 10 entries per user
+    await client.query(
+      `DELETE FROM recently_played
+       WHERE user_id = $1
+       AND id NOT IN (
+         SELECT id FROM recently_played
+         WHERE user_id = $1
+         ORDER BY played_at DESC
+         LIMIT 10
+       )`,
+      [userId]
+    );
+
+    await client.query("COMMIT");
+    res.status(200).json({ message: "Song recorded and history trimmed" });
+  } catch (error) {
+    await client.query("ROLLBACK");
+    res.status(500).json({ error: error.message });
+  } finally {
+    client.release();
+  }
+});
+
+app.get("/api/recent-played", async (req, res) => {
+  const userId = req.user.uid;
+  const client = await pool.connect();
+
+  try {
+    const response = await client.query(
+      "SELECT * FROM recently_played WHERE user_id = $1 ORDER BY played_at DESC",
+      [userId]
+    );
+
+    res.json(response.rows);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
   } finally {
     client.release();
   }
