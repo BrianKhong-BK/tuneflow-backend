@@ -263,7 +263,7 @@ app.post("/api/playlists", async (req, res) => {
   const { name, is_public, description } = req.body;
   const userId = req.user.uid;
   const email = req.user.email;
-  const userName = req.user.name;
+  const userName = req.user.displayName;
   const client = await pool.connect();
 
   // Ensure user exists in your DB
