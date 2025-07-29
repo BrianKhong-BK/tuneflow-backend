@@ -260,10 +260,9 @@ app.use(async (req, res, next) => {
 
 // Example route: create playlist
 app.post("/api/playlists", async (req, res) => {
-  const { name, is_public, description } = req.body;
+  const { name, is_public, description, userName } = req.body;
   const userId = req.user.uid;
   const email = req.user.email;
-  const userName = req.user.displayName;
   const client = await pool.connect();
 
   // Ensure user exists in your DB
