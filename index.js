@@ -11,12 +11,7 @@ const { Pool } = require("pg");
 const { DATABASE_URL, SECRET_KEY } = process.env;
 
 let app = express();
-app.use(
-  cors({
-    origin: ["https://tuneflow-capstone.vercel.app"],
-    credentials: true,
-  })
-);
+app.use(cors());
 app.use(express.json());
 
 const client_id = process.env.SPOTIFY_CLIENT_ID;
